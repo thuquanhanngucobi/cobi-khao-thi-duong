@@ -57,6 +57,7 @@ function renderHome(){
 function renderPracticeHome(){renderHome()}
 function renderLevelHome(level){
   const exams=getExamModules().filter(e=>String(e.meta?.level||'').toUpperCase()===level);
+  console.info('[CoBi] '+level+' exams:', exams.map(e=>e.meta?.id));
   const n=level.replace('HSK','');
   app.innerHTML=`<section class="page"><div class="section-title"><span class="cn">${esc(level)} 模拟考试</span><span class="vi">Luyện đề ${esc(level)}</span></div><p class="review-intro">Chọn bộ đề để bắt đầu. Các file đề mới trong <code>data/exams/</code> sẽ tự xuất hiện.</p><div class="card-grid">${exams.map((e,i)=>{const id=e.meta?.id||`exam_${i+1}`;e.meta=e.meta||{};e.meta.id=id;return `<a class="card menu-card" href="#exam-${encodeURIComponent(id)}"><div class="symbol">试</div><h3>${esc(e.meta.title||`Đề ${i+1}`)}</h3><p>Nghe · 阅读 · 书写</p><span class="review-arrow">进入 →</span></a>`}).join('')||`<div class="card"><div class="notice">${level} hiện chưa có đề. Khi thêm file dữ liệu vào <code>data/exams/${level.toLowerCase()}/</code>, đề sẽ tự xuất hiện.</div></div>`}</div><div class="back-row"><a class="btn secondary" href="#home">← Về Khảo Thí Đường</a></div></section>`;
 }
