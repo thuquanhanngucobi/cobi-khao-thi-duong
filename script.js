@@ -1,4 +1,4 @@
-const GOOGLE_SHEETS_GET_API = ''; // Tạm để trống, sau này dán link Web App lấy đề vào đây
+const GOOGLE_SHEETS_GET_API = 'https://script.google.com/macros/s/AKfycbzwC5JyYCwTxDXIP7l-0vNU2S0S_5ofj1rkbg5ff3jzfwSNH4K5oY9HZcnGJMb0ABcy/exec'; // Tạm để trống, sau này dán link Web App lấy đề vào đây
 
 const app=document.getElementById('app'),toastEl=document.getElementById('toast');
 const EXAM={data:null,section:'idle',studentName:'',timer:null,remaining:0,answers:{},submitted:false,audio:null,audioTimer:null,reviewMode:false,reviewDeadline:0};
