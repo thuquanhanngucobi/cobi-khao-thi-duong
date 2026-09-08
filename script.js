@@ -1,5 +1,6 @@
-const app=document.getElementById('app'),toastEl=document.getElementById('toast');
 const GOOGLE_SHEETS_GET_API = ''; // Tạm để trống, sau này dán link Web App lấy đề vào đây
+
+const app=document.getElementById('app'),toastEl=document.getElementById('toast');
 const EXAM={data:null,section:'idle',studentName:'',timer:null,remaining:0,answers:{},submitted:false,audio:null,audioTimer:null,reviewMode:false,reviewDeadline:0};
 function goTop(){window.scrollTo({top:0,left:0,behavior:'auto'});document.documentElement.scrollTop=0;document.body.scrollTop=0}
 function setPhaseTimer(seconds,onEnd){clearTimers();EXAM.remaining=seconds;paintTimer();const deadline=Date.now()+seconds*1000;EXAM.timer=setInterval(()=>{EXAM.remaining=Math.max(0,Math.ceil((deadline-Date.now())/1000));paintTimer();if(EXAM.remaining<=0){clearInterval(EXAM.timer);EXAM.timer=null;onEnd()}},200);}
@@ -8,6 +9,7 @@ const centerAddressEl=document.getElementById('center-address'); if(centerAddres
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 const norm=v=>String(v??'').trim().toUpperCase().replace(/\s+/g,'');
 function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>toastEl.classList.remove('show'),3000)}
+
 function route(){
   let h=location.hash.slice(1)||'home';
   if(h==='home')renderHome();
@@ -18,6 +20,7 @@ function route(){
   else renderHome();
   document.querySelectorAll('.main-nav a').forEach(a=>a.classList.toggle('active',a.dataset.route===h));
 }
+
 function getVocabModules(){return Object.values(window.CoBiData?.vocab||{}).sort((a,b)=>String(a.level).localeCompare(String(b.level),undefined,{numeric:true}));}
 function getExamModules(){return Object.values(window.CoBiData?.exams||{}).sort((a,b)=>String(a.meta?.level||'').localeCompare(String(b.meta?.level||''),undefined,{numeric:true}) || String(a.meta?.title||'').localeCompare(String(b.meta?.title||'')));}
 function findVocab(id){return window.CoBiData?.vocab?.[id]||null}
@@ -31,6 +34,7 @@ function renderReviewHsk(){
   const custom=modules.filter(m=>!/^HSK[1-6]$/i.test(m.level||''));
   app.innerHTML=`<section class="page"><div class="section-title"><span class="cn">词汇复习</span><span class="vi">Từ vựng</span></div><p class="review-intro">Chọn trình độ để mở danh sách từ, học bằng thẻ lật và làm bài kiểm tra.</p><div class="level-grid">${cards}</div>${custom.length?`<div class="section-title" style="margin-top:44px"><span class="cn">专业词汇</span><span class="vi">Từ vựng chuyên ngành</span></div><div class="level-grid">${custom.map(m=>`<a class="level-card selected" href="#vocab-${encodeURIComponent(m.id)}"><span>${esc(m.level||m.id)}</span><small>${m.items.length} mục</small></a>`).join('')}</div>`:''}<div class="back-row"><a class="btn secondary" href="#review">← Quay lại Ôn tập</a></div></section>`;
 }
+
 function renderVocab(id){
   const data=findVocab(id); if(!data){placeholder('Không tìm thấy dữ liệu','File từ vựng chưa được đăng ký hoặc đường dẫn không đúng.');return;}
   const words=(data.items||[]).map((w,i)=>({...w,id:w.id??`${data.id}_${i+1}`})); const total=words.length; const storageKey=data.id==='hsk2'?'cobi_hsk2_vocab':`cobi_vocab_${data.id}`; const saved=JSON.parse(localStorage.getItem(storageKey)||'{}');
@@ -51,30 +55,31 @@ function renderVocab(id){
 }
 
 function placeholder(t,d){app.innerHTML=`<section class="page"><div class="section-title"><span class="cn">${esc(t)}</span><span class="vi">${esc(d)}</span></div><div class="card"><div class="notice">Khu vực này đã được giữ sẵn trong hệ thống Thư Quán.</div></div></section>`}
-function renderHome(){app.innerHTML=`<section class="page hero"><div><div class="hero-kicker">漢 · 書 · 語 · 學</div><h1><span class="hero-vn">Thư Quán Hán Ngữ</span> <span class="hero-cobi">CoBi</span></h1><h2>一朝入书馆，一生伴汉语</h2><p>Một ngày nhập Thư Quán, trọn đời hành Hán Ngữ.</p><div class="hero-ornament">— ❖ —</div></div></section><section class="page" style="padding-top:0"><div class="section-title"><span class="cn">入馆三卷</span><span class="vi">Ba không gian học tập của Thư Quán</span></div><div class="card-grid"><a class="card menu-card" href="#knowledge"><div class="symbol">知</div><h3>Kiến Thức</h3><p>Từ vựng, ngữ pháp, cấu trúc câu.</p></a><a class="card menu-card" href="#review"><div class="symbol">习</div><h3>Ôn tập</h3><p>Ôn lại kiến thức theo trình độ.</p></a><a class="card menu-card" href="#practice"><div class="symbol">试</div><h3>Luyện đề</h3><p>Luyện đề HSK1–HSK6.</p></a></div></section>`}
+
 function renderHome(){
-  app.innerHTML=`<section class="page hero"><div><div class="hero-kicker">漢 · 考 · 試 · 堂</div><h1><span class="hero-vn">CoBi Khảo Thí Đường</span></h1><h2>一场考试，一次成长</h2><p>Nơi luyện thi HSK theo cấp độ và bộ đề.</p><div class="hero-ornament">— ❖ —</div></div></section><section class="page" style="padding-top:0"><div class="section-title"><span class="cn">六级考场</span><span class="vi">Chọn cấp độ</span></div><p class="review-intro">Chọn HSK1–HSK6. Khi có thêm file đề mới, hệ thống sẽ tự nhận dữ liệu.</p><div class="level-grid">${[1,2,3,4,5,6].map(n=>{const level='HSK'+n;const count=getExamModules().filter(e=>String(e.meta?.level||'').toUpperCase()===level).length;return `<a class="level-card selected" href="#hsk${n}"><span>${level}</span><small>${count?`${count} bộ đề · Đang mở`:'Chưa có dữ liệu'}</small></a>`}).join('')}</div></section>`;
+  app.innerHTML=`<section class="page hero"><div><div class="hero-kicker">漢 · 考 · 試 · 堂</div><h1><span class="hero-vn">CoBi Khảo Thí Đường</span></h1><h2>一场考试，一次成长</h2><p>Nơi luyện thi HSK theo cấp độ và bộ đề.</p><div class="hero-ornament">— ❖ —</div></div></section><section class="page" style="padding-top:0"><div class="section-title"><span class="cn">六级考场</span><span class="vi">Chọn cấp độ</span></div><p class="review-intro">Chọn HSK1–HSK6. Khi có thêm file đề mới, hệ thống sẽ tự nhận dữ liệu.</p><div class="level-grid">${[1,2,3,4,5,6].map(n=>{const level='HSK'+n;const count=getExamModules().filter(e=>String(e.meta?.level||'').toUpperCase()===level).length;return `<a class="level-card selected" href="#hsk${n}"><span>${level}</span><small>${count?`${count} bộ đề · Đang mở`:'Chưa có dữ liệu tĩnh'}</small></a>`}).join('')}</div></section>`;
 }
+
 function renderPracticeHome(){renderHome()}
 function renderLevelHome(level){
   const exams=getExamModules().filter(e=>String(e.meta?.level||'').toUpperCase()===level);
   console.info('[CoBi] '+level+' exams:', exams.map(e=>e.meta?.id));
   const n=level.replace('HSK','');
-  app.innerHTML=`<section class="page"><div class="section-title"><span class="cn">${esc(level)} 模拟考试</span><span class="vi">Luyện đề ${esc(level)}</span></div><p class="review-intro">Chọn bộ đề để bắt đầu. Các file đề mới trong <code>data/exams/</code> sẽ tự xuất hiện.</p><div class="card-grid">${exams.map((e,i)=>{const id=e.meta?.id||`exam_${i+1}`;e.meta=e.meta||{};e.meta.id=id;return `<a class="card menu-card" href="#exam-${encodeURIComponent(id)}"><div class="symbol">试</div><h3>${esc(e.meta.title||`Đề ${i+1}`)}</h3><p>Nghe · 阅读 · 书写</p><span class="review-arrow">进入 →</span></a>`}).join('')||`<div class="card"><div class="notice">${level} hiện chưa có đề. Khi thêm file dữ liệu vào <code>data/exams/${level.toLowerCase()}/</code>, đề sẽ tự xuất hiện.</div></div>`}</div><div class="back-row"><a class="btn secondary" href="#home">← Về Khảo Thí Đường</a></div></section>`;
+  app.innerHTML=`<section class="page"><div class="section-title"><span class="cn">${esc(level)} 模拟考试</span><span class="vi">Luyện đề ${esc(level)}</span></div><p class="review-intro">Chọn bộ đề để bắt đầu. Các file đề mới trong <code>data/exams/</code> sẽ tự xuất hiện.</p><div class="card-grid">${exams.map((e,i)=>{const id=e.meta?.id||`exam_${i+1}`;e.meta=e.meta||{};e.meta.id=id;return `<a class="card menu-card" href="#exam-${encodeURIComponent(id)}"><div class="symbol">试</div><h3>${esc(e.meta.title||`Đề ${i+1}`)}</h3><p>Nghe · 阅读 · 书写</p><span class="review-arrow">进入 →</span></a>`}).join('')||`<div class="card"><div class="notice">${level} hiện chưa có đề tĩnh. Đề lấy từ Google Sheets sẽ được tải khi bạn nhập đúng ID.</div></div>`}</div><div class="back-row"><a class="btn secondary" href="#home">← Về Khảo Thí Đường</a></div></section>`;
 }
-function renderExamHome(id){
-  async function renderExamHome(id){
-  // 1. Tìm đề trong dữ liệu cứng HSK4 hiện tại
-  let data = findExam(id);
 
-  // 2. Nếu không có sẵn, thử lấy từ Google Sheets
+// ==========================================
+// CÁC HÀM XỬ LÝ LOGIC ĐỀ THI (ĐÃ ĐƯỢC CẬP NHẬT)
+// ==========================================
+
+async function renderExamHome(id){
+  let data = findExam(id);
   if(!data){
     app.innerHTML = `<section class="page">
       <div class="section-title"><span class="cn">加载中</span><span class="vi">Đang tải dữ liệu...</span></div>
       <div class="card"><div class="notice">Vui lòng đợi giây lát, hệ thống đang lấy dữ liệu đề từ máy chủ...</div></div>
     </section>`;
     try {
-       // Gọi API lên Google Sheets (khi nào có link sẽ hoạt động)
        if(GOOGLE_SHEETS_GET_API) {
            const response = await fetch(`${GOOGLE_SHEETS_GET_API}?action=getExam&id=${id}`);
            const result = await response.json();
@@ -84,8 +89,7 @@ function renderExamHome(id){
        console.error("Lỗi tải đề từ Sheet:", e);
     }
   }
-
-  // 3. Nếu vẫn không thấy đề, báo lỗi
+  
   if(!data){
     placeholder('Không tìm thấy đề','File đề chưa được đăng ký hoặc đường dẫn không đúng.');
     return;
@@ -93,42 +97,21 @@ function renderExamHome(id){
   
   EXAM.data=data;
   const meta=data.meta||{};
-  
-  // Lọc ra các phần thi có dữ liệu (để bỏ qua phần Viết đối với HSK 1, 2)
   const counts=[
     ['听力', data.listening?.length||0, '判断正误 + 选择题.'],
     ['阅读', data.reading?.length||0, '选词填空 + 排列顺序 + 阅读理解.'],
     ['书写', (data.writingOrder?.length||0)+(data.writingPicture?.length||0), '完成句子 + 看图造句.']
   ];
   const validCounts = counts.filter(x => x[1] > 0);
-
-  app.innerHTML=`<section class="page">
-    <div class="section-title">
-      <span class="cn">${esc(meta.level||'HSK')} 模拟考试</span>
-      <span class="vi">${esc(meta.title||'Bộ đề')}</span>
-    </div>
-    <div class="notice">
-      ${validCounts.map(x=>`<strong>${x[0]}:</strong> ${x[1]}题`).join(' · ')}
-      ${meta.reviewMinutes?` · <strong>检查:</strong> ${meta.reviewMinutes} phút`:''}
-    </div>
-    <div class="card-grid">
-      ${validCounts.map(x=>`<div class="card"><h3>${x[0]} · ${x[1]}题</h3><p>${x[2]}</p></div>`).join('')}
-    </div>
-    <div class="card start-card">
-      <label><strong>姓名 · Họ tên học viên</strong></label>
-      <input id="student-name" placeholder="Nhập họ tên">
-      <button class="btn red" id="start-exam">开始考试 · Bắt đầu</button>
-    </div>
-    <div class="back-row">
-      <a class="btn secondary" href="#hsk${String(meta.level||'HSK').toLowerCase().replace('hsk','')}">← Quay lại danh sách ${esc(meta.level||'HSK')}</a>
-    </div>
-  </section>`;
+  
+  app.innerHTML=`<section class="page"><div class="section-title"><span class="cn">${esc(meta.level||'HSK')} 模拟考试</span><span class="vi">${esc(meta.title||'Bộ đề')}</span></div><div class="notice">${validCounts.map(x=>`<strong>${x[0]}:</strong> ${x[1]}题`).join(' · ')}${meta.reviewMinutes?` · <strong>检查:</strong> ${meta.reviewMinutes} phút`:''}</div><div class="card-grid">${validCounts.map(x=>`<div class="card"><h3>${x[0]} · ${x[1]}题</h3><p>${x[2]}</p></div>`).join('')}</div><div class="card start-card"><label><strong>姓名 · Họ tên học viên</strong></label><input id="student-name" placeholder="Nhập họ tên"><button class="btn red" id="start-exam">开始考试 · Bắt đầu</button></div><div class="back-row"><a class="btn secondary" href="#hsk${String(meta.level||'HSK').toLowerCase().replace('hsk','')}">← Quay lại danh sách ${esc(meta.level||'HSK')}</a></div></section>`;
   
   document.getElementById('start-exam').onclick=()=>startExam(data);
 }
 
 function allQuestions(){return [...(EXAM.data.listening||[]),...(EXAM.data.reading||[]),...(EXAM.data.writingOrder||[]),...(EXAM.data.writingPicture||[])]}
 function sectionQuestions(section){if(section==='listening')return EXAM.data.listening||[];if(section==='reading')return EXAM.data.reading||[];if(section==='writing')return [...(EXAM.data.writingOrder||[]),...(EXAM.data.writingPicture||[])];return allQuestions()}
+
 function questionSection(id){
   const s=EXAM.data?.meta?.sections;
   if(s){
@@ -136,35 +119,38 @@ function questionSection(id){
       if(id>=range[0]&&id<=range[1])return name;
     }
   }
-  // Giữ nguyên fallback cứng cho HSK 4 cũ để không vỡ form
+  // Giữ cấu trúc tĩnh của HSK4
   if(String(EXAM.data?.meta?.level).toUpperCase() === 'HSK4'){
     if(id<=45)return'listening';if(id<=85)return'reading';return'writing';
   }
-  // Tự động tính toán cho HSK 1, 2, 3 dựa trên số lượng câu thực tế
+  // Tự động phân chia cho HSK1, 2, 3
   let lLen = EXAM.data.listening?.length || 0;
   let rLen = EXAM.data.reading?.length || 0;
   if(id <= lLen) return 'listening';
   if(id <= lLen + rLen) return 'reading';
   return 'writing';
 }
+
+function isDone(q){return EXAM.answers[q.id]!==undefined&&String(EXAM.answers[q.id]).trim()!==''}
 function startExam(data){let n=document.getElementById('student-name').value.trim();if(!n)return toast('Vui lòng nhập họ tên học viên.');EXAM.data=data;EXAM.studentName=n;EXAM.answers={};EXAM.submitted=false;EXAM.section='listening';EXAM.reviewMode=false;renderListening()}
 function clearTimers(){clearInterval(EXAM.timer);clearInterval(EXAM.audioTimer);EXAM.timer=null;EXAM.audioTimer=null}
 function startClock(seconds,onEnd){setPhaseTimer(seconds,onEnd)}
 function startAudioClock(){clearInterval(EXAM.audioTimer);EXAM.audioTimer=setInterval(()=>{if(EXAM.audio&&!EXAM.audio.paused&&isFinite(EXAM.audio.duration)){EXAM.remaining=Math.max(0,Math.ceil(EXAM.audio.duration-EXAM.audio.currentTime));paintTimer()}},250)}
 function paintTimer(){let e=document.getElementById('timer');if(!e)return;let s=Math.max(0,EXAM.remaining),m=Math.floor(s/60),r=s%60;e.textContent=`${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;e.classList.toggle('warning',s<=60)}
 function shell(title,sub,qs){app.innerHTML=`<div class="practice-shell"><div class="practice-top"><div class="practice-top-row"><div><div class="exam-title">${esc(EXAM.data.meta.title)}</div><div class="subhead">${esc(title)} · ${esc(sub)}</div></div><div class="timer" id="timer">00:00</div></div><div class="progress-line"><div class="progress-fill" id="progress-fill"></div></div></div><div class="exam-layout"><main class="exam-main" id="exam-main"></main><aside class="reading-nav"><h3>答题卡</h3><div class="legend"><span class="dot green"></span> Đã làm <span class="dot red"></span> Chưa làm</div><div class="palette" id="palette"></div></aside></div></div>`;renderPalette();updateProgress()}
+
 function renderListening(reviewMode=false){
   if(!reviewMode) clearTimers();
   goTop();
   EXAM.section='listening'; EXAM.reviewMode=reviewMode;
   shell(reviewMode?'检查答案 · 听力':'听力','Nghe'+(reviewMode?' · Rà soát':' · Audio'),EXAM.data.listening);
   const main=document.getElementById('exam-main');
-  if(!reviewMode){
+  if(!reviewMode && EXAM.data.meta?.listeningAudio){
     const audio=document.createElement('audio'); audio.id='listening-audio'; audio.src=EXAM.data.meta.listeningAudio; audio.preload='metadata'; audio.controls=false; audio.style.display='none';
     audio.addEventListener('loadedmetadata',()=>{if(isFinite(audio.duration)&&audio.duration>0){EXAM.remaining=Math.ceil(audio.duration);paintTimer();startAudioClock()}});
     audio.addEventListener('timeupdate',()=>{if(isFinite(audio.duration)&&audio.duration>0){EXAM.remaining=Math.max(0,Math.ceil(audio.duration-audio.currentTime));paintTimer()}});
     audio.addEventListener('ended',endListening);
-    audio.addEventListener('error',()=>toast('Không đọc được audio. Kiểm tra file audio/hsk4/test01.mp3.'));
+    audio.addEventListener('error',()=>toast('Không đọc được audio hoặc chưa có link mp3.'));
     main.appendChild(audio); EXAM.audio=audio; audio.play().catch(()=>toast('Nếu trình duyệt chặn tự phát audio, hãy cho phép âm thanh rồi mở lại bài.'));
   }
   EXAM.data.listening.forEach(q=>main.appendChild(questionElement(q)));
@@ -178,7 +164,9 @@ function renderListening(reviewMode=false){
   renderPalette(); updateProgress();
   if(!reviewMode) setTimeout(()=>{if(EXAM.audio&&isFinite(EXAM.audio.duration)&&EXAM.audio.duration>0)startAudioClock()},500);
 }
+
 function endListening(){if(EXAM.section!=='listening')return;clearTimers();if(EXAM.audio){EXAM.audio.pause();EXAM.audio.currentTime=0}EXAM.audio=null;renderReading()}
+
 function renderReading(reviewMode=false){
   if(!reviewMode) clearTimers();
   goTop();
@@ -187,17 +175,13 @@ function renderReading(reviewMode=false){
   shell(reviewMode?'检查答案 · 阅读':'阅读','Đọc · '+(reviewMode?'Rà soát':`${readTime} phút`),EXAM.data.reading);
   const main=document.getElementById('exam-main');
   
-  // KIỂM TRA CẤP ĐỘ ĐỂ VẼ GIAO DIỆN
   if(String(EXAM.data.meta?.level).toUpperCase() === 'HSK4'){
-    // Giữ nguyên hoàn toàn logic cũ của HSK4
     const groups=[['第一部分 · 选词填空',EXAM.data.reading.filter(q=>q.id<=55)],['第二部分 · 排列顺序',EXAM.data.reading.filter(q=>q.id>=56&&q.id<=65)],['第三部分 · 阅读理解',EXAM.data.reading.filter(q=>q.id>=66)]];
     groups.forEach(([title,qs])=>{main.insertAdjacentHTML('beforeend',`<div class="exam-section-heading"><span>${esc(title)}</span></div>`);qs.forEach(q=>main.appendChild(questionElement(q)))});
   } else {
-    // HSK 1, 2, 3: In thẳng danh sách câu hỏi Đọc, Google Sheets sẽ lo việc chia phần
     EXAM.data.reading.forEach(q=>main.appendChild(questionElement(q)));
   }
 
-  // Tự động kiểm tra xem cấp độ này có phần Viết không (HSK1 không có, HSK2,3,4 có)
   const hasWriting = (EXAM.data.writingOrder?.length > 0) || (EXAM.data.writingPicture?.length > 0);
 
   if(reviewMode){
@@ -216,6 +200,7 @@ function renderReading(reviewMode=false){
   }
   renderPalette(); updateProgress();
 }
+
 function renderWriting(reviewMode=false){
   if(!reviewMode) clearTimers();
   goTop();
@@ -225,13 +210,11 @@ function renderWriting(reviewMode=false){
   const main=document.getElementById('exam-main');
   
   if(String(EXAM.data.meta?.level).toUpperCase() === 'HSK4'){
-    // Giữ nguyên hoàn toàn HSK4 cũ
     main.insertAdjacentHTML('beforeend',`<div class="exam-section-heading"><span>第一部分 · 完成句子</span></div>`);
     EXAM.data.writingOrder.forEach(q=>main.appendChild(questionElement(q)));
     main.insertAdjacentHTML('beforeend',`<div class="exam-section-heading"><span>第二部分 · 看图，用词造句</span></div>${EXAM.data.meta?.writingPicture?`<div class="shared-writing-image"><img src="${esc(EXAM.data.meta.writingPicture)}" alt="HSK4 96–100"><p>第96–100题共用此图</p></div>`:''}`);
     EXAM.data.writingPicture.forEach(q=>main.appendChild(questionElement(q)));
   } else {
-    // HSK 2, 3: Đẩy trực tiếp câu hỏi Viết ra
     if (EXAM.data.writingOrder) EXAM.data.writingOrder.forEach(q=>main.appendChild(questionElement(q)));
     if (EXAM.data.writingPicture) EXAM.data.writingPicture.forEach(q=>main.appendChild(questionElement(q)));
   }
@@ -240,26 +223,31 @@ function renderWriting(reviewMode=false){
     main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn secondary" id="back-review">← 回到检查答案 · Quay lại rà soát</button></div>`);
     document.getElementById('back-review').onclick=renderReview;
   }else{
-    main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn red" id="next-review">检查答案 → 进入 rà soát</button></div>`);
+    main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn red" id="next-review">检查答案 → 进入 5 分钟 rà soát</button></div>`);
     document.getElementById('next-review').onclick=startReview;
     setPhaseTimer(writeTime*60,startReview);
   }
   renderPalette(); updateProgress();
 }
+
 function startReview(){
   if(EXAM.section==='review')return;
   goTop();
   clearTimers();
   if(EXAM.audio)EXAM.audio.pause();
   EXAM.audio=null; EXAM.section='review'; EXAM.reviewMode=false;
-  EXAM.reviewDeadline=Date.now()+EXAM.data.meta.reviewMinutes*60*1000;
+  let rTime = EXAM.data.meta?.reviewMinutes || 5;
+  EXAM.reviewDeadline=Date.now()+rTime*60*1000;
   renderReview();
 }
+
 function questionElement(q){const c=document.createElement('article');c.className='question-card';c.id='q-'+q.id;let body='';if(q.type==='tf'){body=`<div class="statement">★ ${esc(q.statement)}</div>${options(q,q.options)}`}else if(q.type==='mcq'){body=options(q,q.options)}else if(q.type==='cloze'){body=(q.example?`<div class="example"><strong>例如：</strong>${esc(q.example)}</div>`:'')+`<div class="cloze-text">${esc(q.question)}</div>${options(q,q.options)}`}else if(q.type==='order'){const keys=Array.isArray(q.parts)?q.parts.map((_,i)=>String.fromCharCode(65+i)):Object.keys(q.parts);const labels=Array.isArray(q.parts)?q.parts:Object.values(q.parts);const saved=String(EXAM.answers[q.id]||'').split('').filter(Boolean);const ordered=saved.length?saved:keys;body=`<div class="order-parts">${labels.map((v,i)=>`<div class="order-part"><b>${keys[i]}</b><span>${esc(v)}</span></div>`).join('')}</div><p class="drag-hint">拖动下方字母排列顺序 · Có thể kéo thả hoặc bấm để đổi vị trí</p><div class="order-builder" data-order="${q.id}">${ordered.map(k=>`<button type="button" class="order-token" draggable="true" data-token="${k}">${k}</button>`).join('')}</div><input type="hidden" class="answer-input" data-answer="${q.id}" value="${esc(ordered.join(''))}">`}else if(q.type==='reading'){body=`<div class="passage">${esc(q.passage)}</div><div class="question-text">${esc(q.question)}</div>${options(q,q.options)}`}else if(q.type==='writing_text'){body=`<div class="writing-words"><b>词语：</b>${(q.words||[]).map(w=>`<span class="word-chip">${esc(w)}</span>`).join(' ')}</div><div class="question-text">${esc(q.question||'完成句子')}</div><input class="answer-input writing-text-answer" data-answer="${q.id}" value="${esc(EXAM.answers[q.id]||'')}" placeholder="请输入完整句子">`}else if(q.type==='picture'){body=`<div class="picture-instruction">看图，用词“<strong>${esc(q.word)}</strong>”造句</div>${q.content?`<img class="writing-picture-item" src="${esc(q.content)}" alt="第${q.id}题">`:''}<input class="answer-input picture-answer" data-answer="${q.id}" value="${esc(EXAM.answers[q.id]||'')}" placeholder="请输入句子">`};c.innerHTML=`<div class="q-head"><span class="q-number">第 ${q.id} 题</span><span class="q-type">${typeName(q.type)}</span></div>${body}`;c.querySelectorAll('input[type=radio]').forEach(r=>r.onchange=()=>setAnswer(q.id,r.value));c.querySelectorAll('.answer-input:not([type=hidden])').forEach(i=>i.oninput=()=>setAnswer(q.id,i.value));const builder=c.querySelector('.order-builder');if(builder){let dragged=null;const sync=()=>{const order=[...builder.querySelectorAll('.order-token')].map(b=>b.dataset.token).join('');const input=c.querySelector('.answer-input');input.value=order;setAnswer(q.id,order)};builder.querySelectorAll('.order-token').forEach(btn=>{btn.addEventListener('dragstart',e=>{dragged=btn;btn.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',btn.dataset.token)});btn.addEventListener('dragend',()=>{dragged=null;btn.classList.remove('dragging');builder.querySelectorAll('.drag-over').forEach(x=>x.classList.remove('drag-over'))});btn.addEventListener('dragover',e=>{e.preventDefault();btn.classList.add('drag-over');e.dataTransfer.dropEffect='move'});btn.addEventListener('dragleave',()=>btn.classList.remove('drag-over'));btn.addEventListener('drop',e=>{e.preventDefault();btn.classList.remove('drag-over');if(!dragged||dragged===btn)return;const rect=btn.getBoundingClientRect();builder.insertBefore(dragged,e.clientX>rect.left+rect.width/2?btn.nextSibling:btn);sync()});btn.addEventListener('click',()=>{const arr=[...builder.querySelectorAll('.order-token')];const idx=arr.indexOf(btn);if(idx>0){builder.insertBefore(btn,arr[idx-1]);sync()}else if(arr.length>1){builder.appendChild(btn);sync()}})})}return c}
 function typeName(t){return({tf:'判断正误',mcq:'选择题',cloze:'选词填空',reading:'阅读理解',order:'排列顺序',writing_text:'完成句子',picture:'看图写句'})[t]||''}
 function options(q,o){return `<div class="options">${Object.entries(o).map(([k,v])=>`<label class="option"><input type="radio" name="q-${q.id}" value="${k}" ${EXAM.answers[q.id]===k?'checked':''}><span><b>${k}.</b> ${esc(v)}</span></label>`).join('')}</div>`}
 function setAnswer(id,v){EXAM.answers[id]=v;renderPalette();updateProgress()}
+
 function renderPalette(){let e=document.getElementById('palette');if(!e)return;let qs=sectionQuestions(EXAM.section);e.innerHTML=qs.map(q=>`<button class="${isDone(q)?'done':''}" data-jump="${q.id}">${q.id}</button>`).join('');e.querySelectorAll('button').forEach(b=>b.onclick=()=>jumpToQuestion(Number(b.dataset.jump)))}
+
 function jumpToQuestion(id){
   const sec=questionSection(id);
   if(EXAM.section===sec && !EXAM.reviewMode){document.getElementById('q-'+id)?.scrollIntoView({behavior:'smooth',block:'start'});return;}
@@ -268,7 +256,9 @@ function jumpToQuestion(id){
   if(sec==='listening')renderListening(true);else if(sec==='reading')renderReading(true);else renderWriting(true);
   setTimeout(()=>document.getElementById('q-'+id)?.scrollIntoView({behavior:'auto',block:'start'}),80);
 }
+
 function updateProgress(){let e=document.getElementById('progress-fill');if(!e)return;let qs=sectionQuestions(EXAM.section);e.style.width=qs.length?`${qs.filter(isDone).length/qs.length*100}%`:'0%'}
+
 function renderReview(){
   clearTimers();
   goTop();
@@ -286,9 +276,38 @@ function formatTime(s){s=Math.max(0,Math.ceil(s));return `${String(Math.floor(s/
 function submitExam(){if(EXAM.submitted)return;EXAM.submitted=true;clearTimers();if(EXAM.audio)EXAM.audio.pause();let r=calculateResult();saveResultLocally(r);renderResult(r);sendResultToGoogleSheets(r)}
 function normWriting(v){return norm(v).replace(/[。！？!?，,、；;：:‘’“”"'（）()《》<>]/g,'')}
 function answerCorrect(q){if(q.type==='writing_text')return normWriting(EXAM.answers[q.id])===normWriting(q.answer);return norm(EXAM.answers[q.id])===norm(q.answer)}
-function calculateResult(){let l=EXAM.data.listening,r=EXAM.data.reading,w=EXAM.data.writingOrder,p=EXAM.data.writingPicture;let lc=l.filter(answerCorrect).length,rc=r.filter(answerCorrect).length,wc=w.filter(answerCorrect).length;const m=EXAM.data.meta||{},lp=Number(m.listeningPoint??2.22),rp=Number(m.readingPoint??2.5),wp=Number(m.writingOrderPoint??6);let wrong=[...l,...r,...w].filter(q=>q.answer&&!answerCorrect(q)).map(q=>({id:q.id,student:EXAM.answers[q.id]||'',correct:q.answer}));return{examId:EXAM.data.meta.title,level:EXAM.data.meta.level,studentName:EXAM.studentName,submittedAt:new Date().toISOString(),listeningCorrect:lc,listeningTotal:l.length,readingCorrect:rc,readingTotal:r.length,writingOrderCorrect:wc,writingOrderTotal:w.length,pictureAnswered:p.filter(isDone).length,pictureTotal:p.length,autoScore:+(lc*lp+rc*rp+wc*wp).toFixed(2),wrong,answers:{...EXAM.answers}}}
-function renderResult(r){app.innerHTML=`<section class="page"><div class="result-box"><div class="section-title"><span class="cn">考试结果</span><span class="vi">Kết quả luyện đề</span></div><div class="score-big">${r.autoScore}</div><p class="result-note">Học viên: <b>${esc(r.studentName)}</b><br>Điểm tự động, chưa gồm điểm 96–100 do giáo viên chấm.</p><table class="score-table"><tr><th>Phần</th><th>Đúng</th><th>Điểm</th></tr><tr><td>Nghe</td><td>${r.listeningCorrect}/${r.listeningTotal}</td><td>${(r.listeningCorrect*Number(EXAM.data.meta?.listeningPoint??2.22)).toFixed(2)}</td></tr><tr><td>Đọc</td><td>${r.readingCorrect}/${r.readingTotal}</td><td>${(r.readingCorrect*Number(EXAM.data.meta?.readingPoint??2.5)).toFixed(2)}</td></tr><tr><td>Viết 86–95</td><td>${r.writingOrderCorrect}/${r.writingOrderTotal}</td><td>${(r.writingOrderCorrect*Number(EXAM.data.meta?.writingOrderPoint??6)).toFixed(2)}</td></tr><tr><td>Viết 96–100</td><td>${r.pictureAnswered}/${r.pictureTotal}</td><td>GV chấm</td></tr></table><h3>Câu sai / chưa làm</h3><div class="wrong-list">${r.wrong.length?r.wrong.map(w=>`<div class="wrong-item"><b>Câu ${w.id}</b> · Bạn: <code>${esc(w.student||'Chưa làm')}</code> · Đáp án: <code>${esc(w.correct)}</code></div>`).join(''):'Không có câu sai ở phần tự chấm.'}</div><div class="notice">${GOOGLE_SHEETS_WEB_APP_URL?'Kết quả đã được gửi lên Google Sheets.':''}</div><a class="btn secondary" href="#exam-${encodeURIComponent(EXAM.data.meta.id)}">Làm lại</a></div></section>`}
+
+function calculateResult(){
+  let l=EXAM.data.listening||[],r=EXAM.data.reading||[],w=EXAM.data.writingOrder||[],p=EXAM.data.writingPicture||[];
+  let lc=l.filter(answerCorrect).length,rc=r.filter(answerCorrect).length,wc=w.filter(answerCorrect).length;
+  const m=EXAM.data.meta||{},lp=Number(m.listeningPoint??2.22),rp=Number(m.readingPoint??2.5),wp=Number(m.writingOrderPoint??6);
+  let wrong=[...l,...r,...w].filter(q=>q.answer&&!answerCorrect(q)).map(q=>({id:q.id,student:EXAM.answers[q.id]||'',correct:q.answer}));
+  return{examId:EXAM.data.meta.title,level:EXAM.data.meta.level,studentName:EXAM.studentName,submittedAt:new Date().toISOString(),listeningCorrect:lc,listeningTotal:l.length,readingCorrect:rc,readingTotal:r.length,writingOrderCorrect:wc,writingOrderTotal:w.length,pictureAnswered:p.filter(isDone).length,pictureTotal:p.length,autoScore:+(lc*lp+rc*rp+wc*wp).toFixed(2),wrong,answers:{...EXAM.answers}}
+}
+
+function renderResult(r){
+  app.innerHTML=`<section class="page">
+    <div class="result-box">
+      <div class="section-title"><span class="cn">考试结果</span><span class="vi">Kết quả luyện đề</span></div>
+      <div class="score-big">${r.autoScore}</div>
+      <p class="result-note">Học viên: <b>${esc(r.studentName)}</b><br>Điểm tự động, chưa gồm điểm do giáo viên chấm (nếu có).</p>
+      <table class="score-table">
+        <tr><th>Phần</th><th>Đúng</th><th>Điểm</th></tr>
+        <tr><td>Nghe</td><td>${r.listeningCorrect}/${r.listeningTotal}</td><td>${(r.listeningCorrect*Number(EXAM.data.meta?.listeningPoint??2.22)).toFixed(2)}</td></tr>
+        <tr><td>Đọc</td><td>${r.readingCorrect}/${r.readingTotal}</td><td>${(r.readingCorrect*Number(EXAM.data.meta?.readingPoint??2.5)).toFixed(2)}</td></tr>
+        ${r.writingOrderTotal > 0 ? `<tr><td>Viết (Sắp xếp)</td><td>${r.writingOrderCorrect}/${r.writingOrderTotal}</td><td>${(r.writingOrderCorrect*Number(EXAM.data.meta?.writingOrderPoint??6)).toFixed(2)}</td></tr>` : ''}
+        ${r.pictureTotal > 0 ? `<tr><td>Viết (Tạo câu)</td><td>${r.pictureAnswered}/${r.pictureTotal}</td><td>GV chấm</td></tr>` : ''}
+      </table>
+      <h3>Câu sai / chưa làm</h3>
+      <div class="wrong-list">${r.wrong.length?r.wrong.map(w=>`<div class="wrong-item"><b>Câu ${w.id}</b> · Bạn: <code>${esc(w.student||'Chưa làm')}</code> · Đáp án: <code>${esc(w.correct)}</code></div>`).join(''):'Không có câu sai ở phần tự chấm.'}</div>
+      <div class="notice">${GOOGLE_SHEETS_WEB_APP_URL?'Kết quả đã được gửi lên Google Sheets.':''}</div>
+      <a class="btn secondary" href="#exam-${encodeURIComponent(EXAM.data.meta?.id||'')}">Làm lại</a>
+    </div>
+  </section>`;
+}
+
 const GOOGLE_SHEETS_WEB_APP_URL='https://script.google.com/macros/s/AKfycbwotWNfwoNDMZWABbdifr5KGD05Qb3E0Txp-TOETXoP48Yb-v91zciX0VdMgzzUlWoXLw/exec';
 function saveResultLocally(r){try{const key='cobi_hsk_results';const old=JSON.parse(localStorage.getItem(key)||'[]');old.push(r);localStorage.setItem(key,JSON.stringify(old));}catch(e){console.warn('Không lưu được localStorage',e)}}
 function sendResultToGoogleSheets(r){if(!GOOGLE_SHEETS_WEB_APP_URL)return;const payload={...r,answers:JSON.stringify(r.answers),wrong:JSON.stringify(r.wrong)};fetch(GOOGLE_SHEETS_WEB_APP_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)}).then(()=>toast('Đã gửi kết quả lên Google Sheets.')).catch(()=>toast('Không gửi được Google Sheets; kết quả vẫn được lưu trên máy.'))}
+
 window.addEventListener('hashchange',route);route();
