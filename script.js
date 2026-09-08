@@ -129,8 +129,24 @@ function renderExamHome(id){
 
 function allQuestions(){return [...(EXAM.data.listening||[]),...(EXAM.data.reading||[]),...(EXAM.data.writingOrder||[]),...(EXAM.data.writingPicture||[])]}
 function sectionQuestions(section){if(section==='listening')return EXAM.data.listening||[];if(section==='reading')return EXAM.data.reading||[];if(section==='writing')return [...(EXAM.data.writingOrder||[]),...(EXAM.data.writingPicture||[])];return allQuestions()}
-function questionSection(id){const s=EXAM.data?.meta?.sections;if(s){for(const [name,range] of Object.entries(s)){if(id>=range[0]&&id<=range[1])return name}}if(id<=45)return'listening';if(id<=85)return'reading';return'writing'}
-function isDone(q){return EXAM.answers[q.id]!==undefined&&String(EXAM.answers[q.id]).trim()!==''}
+function questionSection(id){
+  const s=EXAM.data?.meta?.sections;
+  if(s){
+    for(const [name,range] of Object.entries(s)){
+      if(id>=range[0]&&id<=range[1])return name;
+    }
+  }
+  // Giữ nguyên fallback cứng cho HSK 4 cũ để không vỡ form
+  if(String(EXAM.data?.meta?.level).toUpperCase() === 'HSK4'){
+    if(id<=45)return'listening';if(id<=85)return'reading';return'writing';
+  }
+  // Tự động tính toán cho HSK 1, 2, 3 dựa trên số lượng câu thực tế
+  let lLen = EXAM.data.listening?.length || 0;
+  let rLen = EXAM.data.reading?.length || 0;
+  if(id <= lLen) return 'listening';
+  if(id <= lLen + rLen) return 'reading';
+  return 'writing';
+}
 function startExam(data){let n=document.getElementById('student-name').value.trim();if(!n)return toast('Vui lòng nhập họ tên học viên.');EXAM.data=data;EXAM.studentName=n;EXAM.answers={};EXAM.submitted=false;EXAM.section='listening';EXAM.reviewMode=false;renderListening()}
 function clearTimers(){clearInterval(EXAM.timer);clearInterval(EXAM.audioTimer);EXAM.timer=null;EXAM.audioTimer=null}
 function startClock(seconds,onEnd){setPhaseTimer(seconds,onEnd)}
@@ -167,17 +183,36 @@ function renderReading(reviewMode=false){
   if(!reviewMode) clearTimers();
   goTop();
   EXAM.section='reading'; EXAM.reviewMode=reviewMode;
-  shell(reviewMode?'检查答案 · 阅读':'阅读','Đọc · '+(reviewMode?'Rà soát':'40 phút'),EXAM.data.reading);
+  let readTime = EXAM.data.meta?.readingTime || 40;
+  shell(reviewMode?'检查答案 · 阅读':'阅读','Đọc · '+(reviewMode?'Rà soát':`${readTime} phút`),EXAM.data.reading);
   const main=document.getElementById('exam-main');
-  const groups=[['第一部分 · 选词填空',EXAM.data.reading.filter(q=>q.id<=55)],['第二部分 · 排列顺序',EXAM.data.reading.filter(q=>q.id>=56&&q.id<=65)],['第三部分 · 阅读理解',EXAM.data.reading.filter(q=>q.id>=66)]];
-  groups.forEach(([title,qs])=>{main.insertAdjacentHTML('beforeend',`<div class="exam-section-heading"><span>${esc(title)}</span></div>`);qs.forEach(q=>main.appendChild(questionElement(q)))});
+  
+  // KIỂM TRA CẤP ĐỘ ĐỂ VẼ GIAO DIỆN
+  if(String(EXAM.data.meta?.level).toUpperCase() === 'HSK4'){
+    // Giữ nguyên hoàn toàn logic cũ của HSK4
+    const groups=[['第一部分 · 选词填空',EXAM.data.reading.filter(q=>q.id<=55)],['第二部分 · 排列顺序',EXAM.data.reading.filter(q=>q.id>=56&&q.id<=65)],['第三部分 · 阅读理解',EXAM.data.reading.filter(q=>q.id>=66)]];
+    groups.forEach(([title,qs])=>{main.insertAdjacentHTML('beforeend',`<div class="exam-section-heading"><span>${esc(title)}</span></div>`);qs.forEach(q=>main.appendChild(questionElement(q)))});
+  } else {
+    // HSK 1, 2, 3: In thẳng danh sách câu hỏi Đọc, Google Sheets sẽ lo việc chia phần
+    EXAM.data.reading.forEach(q=>main.appendChild(questionElement(q)));
+  }
+
+  // Tự động kiểm tra xem cấp độ này có phần Viết không (HSK1 không có, HSK2,3,4 có)
+  const hasWriting = (EXAM.data.writingOrder?.length > 0) || (EXAM.data.writingPicture?.length > 0);
+
   if(reviewMode){
     main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn secondary" id="back-review">← 回到检查答案 · Quay lại rà soát</button></div>`);
     document.getElementById('back-review').onclick=renderReview;
   }else{
-    main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn red" id="next-writing">下一部分 → Sang 书写</button></div>`);
-    document.getElementById('next-writing').onclick=()=>renderWriting(false);
-    setPhaseTimer(40*60,()=>renderWriting(false));
+    if(hasWriting){
+       main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn red" id="next-writing">下一部分 → Sang 书写</button></div>`);
+       document.getElementById('next-writing').onclick=()=>renderWriting(false);
+       setPhaseTimer(readTime*60,()=>renderWriting(false));
+    } else {
+       main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn red" id="next-review">检查答案 → 进入 rà soát</button></div>`);
+       document.getElementById('next-review').onclick=startReview;
+       setPhaseTimer(readTime*60,startReview);
+    }
   }
   renderPalette(); updateProgress();
 }
@@ -185,19 +220,29 @@ function renderWriting(reviewMode=false){
   if(!reviewMode) clearTimers();
   goTop();
   EXAM.section='writing'; EXAM.reviewMode=reviewMode;
-  shell(reviewMode?'检查答案 · 书写':'书写','Viết · '+(reviewMode?'Rà soát':'25 phút'),sectionQuestions('writing'));
+  let writeTime = EXAM.data.meta?.writingTime || 25;
+  shell(reviewMode?'检查答案 · 书写':'书写','Viết · '+(reviewMode?'Rà soát':`${writeTime} phút`),sectionQuestions('writing'));
   const main=document.getElementById('exam-main');
-  main.insertAdjacentHTML('beforeend',`<div class="exam-section-heading"><span>第一部分 · 完成句子</span></div>`);
-  EXAM.data.writingOrder.forEach(q=>main.appendChild(questionElement(q)));
-  main.insertAdjacentHTML('beforeend',`<div class="exam-section-heading"><span>第二部分 · 看图，用词造句</span></div>${EXAM.data.meta?.writingPicture?`<div class="shared-writing-image"><img src="${esc(EXAM.data.meta.writingPicture)}" alt="HSK4 96–100"><p>第96–100题共用此图</p></div>`:''}`);
-  EXAM.data.writingPicture.forEach(q=>main.appendChild(questionElement(q)));
+  
+  if(String(EXAM.data.meta?.level).toUpperCase() === 'HSK4'){
+    // Giữ nguyên hoàn toàn HSK4 cũ
+    main.insertAdjacentHTML('beforeend',`<div class="exam-section-heading"><span>第一部分 · 完成句子</span></div>`);
+    EXAM.data.writingOrder.forEach(q=>main.appendChild(questionElement(q)));
+    main.insertAdjacentHTML('beforeend',`<div class="exam-section-heading"><span>第二部分 · 看图，用词造句</span></div>${EXAM.data.meta?.writingPicture?`<div class="shared-writing-image"><img src="${esc(EXAM.data.meta.writingPicture)}" alt="HSK4 96–100"><p>第96–100题共用此图</p></div>`:''}`);
+    EXAM.data.writingPicture.forEach(q=>main.appendChild(questionElement(q)));
+  } else {
+    // HSK 2, 3: Đẩy trực tiếp câu hỏi Viết ra
+    if (EXAM.data.writingOrder) EXAM.data.writingOrder.forEach(q=>main.appendChild(questionElement(q)));
+    if (EXAM.data.writingPicture) EXAM.data.writingPicture.forEach(q=>main.appendChild(questionElement(q)));
+  }
+
   if(reviewMode){
     main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn secondary" id="back-review">← 回到检查答案 · Quay lại rà soát</button></div>`);
     document.getElementById('back-review').onclick=renderReview;
   }else{
-    main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn red" id="next-review">检查答案 → 进入 5 分钟 rà soát</button></div>`);
+    main.insertAdjacentHTML('beforeend',`<div class="action-row"><span></span><button class="btn red" id="next-review">检查答案 → 进入 rà soát</button></div>`);
     document.getElementById('next-review').onclick=startReview;
-    setPhaseTimer(25*60,startReview);
+    setPhaseTimer(writeTime*60,startReview);
   }
   renderPalette(); updateProgress();
 }
