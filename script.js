@@ -1,9 +1,9 @@
 // ==========================================
 // TỪ ĐIỂN API - ĐIỀN LINK GOOGLE SHEETS VÀO ĐÂY
 // ==========================================
-const COBI_APIS = {https://script.google.com/macros/s/AKfycbzwC5JyYCwTxDXIP7l-0vNU2S0S_5ofj1rkbg5ff3jzfwSNH4K5oY9HZcnGJMb0ABcy/exec
+const COBI_APIS = {
   'HSK1': '',
-  'HSK2': '', 
+  'HSK2': 'https://script.google.com/macros/s/AKfycbzwC5JyYCwTxDXIP7l-0vNU2S0S_5ofj1rkbg5ff3jzfwSNH4K5oY9HZcnGJMb0ABcy/exec', 
   'HSK3': '',
   'HSK4': '', 
   'HSK5': '',
