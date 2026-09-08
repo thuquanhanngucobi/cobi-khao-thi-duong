@@ -1,4 +1,5 @@
 const app=document.getElementById('app'),toastEl=document.getElementById('toast');
+const GOOGLE_SHEETS_GET_API = ''; // Tạm để trống, sau này dán link Web App lấy đề vào đây
 const EXAM={data:null,section:'idle',studentName:'',timer:null,remaining:0,answers:{},submitted:false,audio:null,audioTimer:null,reviewMode:false,reviewDeadline:0};
 function goTop(){window.scrollTo({top:0,left:0,behavior:'auto'});document.documentElement.scrollTop=0;document.body.scrollTop=0}
 function setPhaseTimer(seconds,onEnd){clearTimers();EXAM.remaining=seconds;paintTimer();const deadline=Date.now()+seconds*1000;EXAM.timer=setInterval(()=>{EXAM.remaining=Math.max(0,Math.ceil((deadline-Date.now())/1000));paintTimer();if(EXAM.remaining<=0){clearInterval(EXAM.timer);EXAM.timer=null;onEnd()}},200);}
@@ -62,9 +63,67 @@ function renderLevelHome(level){
   app.innerHTML=`<section class="page"><div class="section-title"><span class="cn">${esc(level)} 模拟考试</span><span class="vi">Luyện đề ${esc(level)}</span></div><p class="review-intro">Chọn bộ đề để bắt đầu. Các file đề mới trong <code>data/exams/</code> sẽ tự xuất hiện.</p><div class="card-grid">${exams.map((e,i)=>{const id=e.meta?.id||`exam_${i+1}`;e.meta=e.meta||{};e.meta.id=id;return `<a class="card menu-card" href="#exam-${encodeURIComponent(id)}"><div class="symbol">试</div><h3>${esc(e.meta.title||`Đề ${i+1}`)}</h3><p>Nghe · 阅读 · 书写</p><span class="review-arrow">进入 →</span></a>`}).join('')||`<div class="card"><div class="notice">${level} hiện chưa có đề. Khi thêm file dữ liệu vào <code>data/exams/${level.toLowerCase()}/</code>, đề sẽ tự xuất hiện.</div></div>`}</div><div class="back-row"><a class="btn secondary" href="#home">← Về Khảo Thí Đường</a></div></section>`;
 }
 function renderExamHome(id){
-  const data=findExam(id);if(!data){placeholder('Không tìm thấy đề','File đề chưa được đăng ký hoặc đường dẫn không đúng.');return;}EXAM.data=data;
-  const meta=data.meta||{}, counts=[['听力',data.listening?.length||0],['阅读',data.reading?.length||0],['书写',(data.writingOrder?.length||0)+(data.writingPicture?.length||0)]];
-  app.innerHTML=`<section class="page"><div class="section-title"><span class="cn">${esc(meta.level||'HSK')} 模拟考试</span><span class="vi">${esc(meta.title||'Bộ đề')}</span></div><div class="notice">${counts.map(x=>`<strong>${x[0]}:</strong> ${x[1]}题`).join(' · ')}${meta.reviewMinutes?` · <strong>检查:</strong> ${meta.reviewMinutes} phút`:''}</div><div class="card-grid">${counts.map(x=>`<div class="card"><h3>${x[0]} · ${x[1]}题</h3><p>${x[0]==='听力'?'判断正误 + 选择题.':x[0]==='阅读'?'选词填空 + 排列顺序 + 阅读理解.':'完成句子 + 看图造句.'}</p></div>`).join('')}</div><div class="card start-card"><label><strong>姓名 · Họ tên học viên</strong></label><input id="student-name" placeholder="Nhập họ tên"><button class="btn red" id="start-exam">开始考试 · Bắt đầu</button></div><div class="back-row"><a class="btn secondary" href="#hsk${String(meta.level||'HSK').toLowerCase().replace('hsk','hsk')}">← Quay lại danh sách ${esc(meta.level||'HSK')}</a></div></section>`;
+  async function renderExamHome(id){
+  // 1. Tìm đề trong dữ liệu cứng HSK4 hiện tại
+  let data = findExam(id);
+
+  // 2. Nếu không có sẵn, thử lấy từ Google Sheets
+  if(!data){
+    app.innerHTML = `<section class="page">
+      <div class="section-title"><span class="cn">加载中</span><span class="vi">Đang tải dữ liệu...</span></div>
+      <div class="card"><div class="notice">Vui lòng đợi giây lát, hệ thống đang lấy dữ liệu đề từ máy chủ...</div></div>
+    </section>`;
+    try {
+       // Gọi API lên Google Sheets (khi nào có link sẽ hoạt động)
+       if(GOOGLE_SHEETS_GET_API) {
+           const response = await fetch(`${GOOGLE_SHEETS_GET_API}?action=getExam&id=${id}`);
+           const result = await response.json();
+           if(result && result.meta) { data = result; }
+       }
+    } catch(e) {
+       console.error("Lỗi tải đề từ Sheet:", e);
+    }
+  }
+
+  // 3. Nếu vẫn không thấy đề, báo lỗi
+  if(!data){
+    placeholder('Không tìm thấy đề','File đề chưa được đăng ký hoặc đường dẫn không đúng.');
+    return;
+  }
+  
+  EXAM.data=data;
+  const meta=data.meta||{};
+  
+  // Lọc ra các phần thi có dữ liệu (để bỏ qua phần Viết đối với HSK 1, 2)
+  const counts=[
+    ['听力', data.listening?.length||0, '判断正误 + 选择题.'],
+    ['阅读', data.reading?.length||0, '选词填空 + 排列顺序 + 阅读理解.'],
+    ['书写', (data.writingOrder?.length||0)+(data.writingPicture?.length||0), '完成句子 + 看图造句.']
+  ];
+  const validCounts = counts.filter(x => x[1] > 0);
+
+  app.innerHTML=`<section class="page">
+    <div class="section-title">
+      <span class="cn">${esc(meta.level||'HSK')} 模拟考试</span>
+      <span class="vi">${esc(meta.title||'Bộ đề')}</span>
+    </div>
+    <div class="notice">
+      ${validCounts.map(x=>`<strong>${x[0]}:</strong> ${x[1]}题`).join(' · ')}
+      ${meta.reviewMinutes?` · <strong>检查:</strong> ${meta.reviewMinutes} phút`:''}
+    </div>
+    <div class="card-grid">
+      ${validCounts.map(x=>`<div class="card"><h3>${x[0]} · ${x[1]}题</h3><p>${x[2]}</p></div>`).join('')}
+    </div>
+    <div class="card start-card">
+      <label><strong>姓名 · Họ tên học viên</strong></label>
+      <input id="student-name" placeholder="Nhập họ tên">
+      <button class="btn red" id="start-exam">开始考试 · Bắt đầu</button>
+    </div>
+    <div class="back-row">
+      <a class="btn secondary" href="#hsk${String(meta.level||'HSK').toLowerCase().replace('hsk','')}">← Quay lại danh sách ${esc(meta.level||'HSK')}</a>
+    </div>
+  </section>`;
+  
   document.getElementById('start-exam').onclick=()=>startExam(data);
 }
 
