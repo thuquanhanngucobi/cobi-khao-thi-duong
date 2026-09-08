@@ -10,6 +10,17 @@ const COBI_APIS = {https://script.google.com/macros/s/AKfycbzwC5JyYCwTxDXIP7l-0v
   'HSK6': ''
 };
 
+// ==========================================
+// HÀM BẢO VỆ (Tránh lỗi cache từ hệ thống cũ)
+// ==========================================
+function getVocabModules(){return [];}
+function getExamModules(){return [];}
+function findVocab(id){return null;}
+function findExam(id){return null;}
+
+// ==========================================
+// KHỞI TẠO ỨNG DỤNG
+// ==========================================
 const app = document.getElementById('app'), toastEl = document.getElementById('toast');
 const EXAM = { data: null, section: 'idle', studentName: '', timer: null, remaining: 0, answers: {}, submitted: false, audio: null, audioTimer: null, reviewMode: false, reviewDeadline: 0 };
 
@@ -29,37 +40,43 @@ function route() {
   document.querySelectorAll('.main-nav a').forEach(a => a.classList.toggle('active', a.dataset.route === h));
 }
 
+// ==========================================
+// GIAO DIỆN TRANG CHỦ & DANH SÁCH
+// ==========================================
 function renderHome() {
-  app.innerHTML = `<section class="page hero"><div><div class="hero-kicker">漢 · 考 · 試 · 堂</div><h1><span class="hero-vn">CoBi Khảo Thí Đường</span></h1><h2>一场考试，一次成长</h2><p>Hệ thống thi thử HSK 3.0 trực tuyến.</p><div class="hero-ornament">— ❖ —</div></div></section><section class="page" style="padding-top:0"><div class="section-title"><span class="cn">选择级别</span><span class="vi">Chọn cấp độ</span></div><div class="level-grid">${[1, 2, 3, 4, 5, 6].map(n => `<a class="level-card selected" href="#hsk${n}"><span>HSK${n}</span><small>Hệ thống động</small></a>`).join('')}</div></section>`;
+  app.innerHTML = `<section class="page hero"><div><div class="hero-kicker">漢 · 考 · 試 · 堂</div><h1><span class="hero-vn">CoBi Khảo Thí Đường</span></h1><h2>一场考试，一次成长</h2><p>Hệ thống thi thử HSK 3.0 trực tuyến hoàn toàn mới.</p><div class="hero-ornament">— ❖ —</div></div></section><section class="page" style="padding-top:0"><div class="section-title"><span class="cn">选择级别</span><span class="vi">Chọn cấp độ</span></div><div class="level-grid">${[1, 2, 3, 4, 5, 6].map(n => `<a class="level-card selected" href="#hsk${n}"><span>HSK${n}</span><small>Lấy đề động từ Sheet</small></a>`).join('')}</div></section>`;
 }
 
 function renderLevelHome(level) {
   app.innerHTML = `<section class="page"><div class="section-title"><span class="cn">${esc(level)} 模拟考试</span><span class="vi">Luyện đề ${esc(level)}</span></div>
     <div class="card" style="max-width: 600px; margin: 0 auto 30px; text-align: center; background: #fffaf0; border-color: var(--gold);">
-       <h3 style="margin-top:0; color: var(--red);">Tải đề thi</h3>
-       <p style="color: var(--muted); font-size: 14px;">Nhập mã đề (Ví dụ: De1, De2) để nạp dữ liệu trực tiếp từ máy chủ.</p>
+       <h3 style="margin-top:0; color: var(--red);">Tải đề thi từ máy chủ</h3>
+       <p style="color: var(--muted); font-size: 14px;">Nhập tên Tab đề (Ví dụ: De1, De2) trong file Google Sheets để làm bài.</p>
        <div style="display:flex; gap:10px; justify-content:center; margin-top: 15px;">
-          <input id="dynamic-exam-id" placeholder="Nhập mã đề..." style="flex:1; max-width: 300px; padding:12px; border:1px solid var(--line); border-radius:3px; outline:none;">
-          <button class="btn red" onclick="loadDynamicExam('${level}')">Tải đề</button>
+          <input id="dynamic-exam-id" placeholder="VD: De1" style="flex:1; max-width: 300px; padding:12px; border:1px solid var(--line); border-radius:3px; outline:none;">
+          <button class="btn red" onclick="loadDynamicExam('${level}')">Tải đề ngay</button>
        </div>
     </div><div class="back-row"><a class="btn secondary" href="#home">← Về trang chủ</a></div></section>`;
 }
 
 window.loadDynamicExam = function (level) {
   const tabName = document.getElementById('dynamic-exam-id').value.trim();
-  if (!tabName) return toast('Vui lòng nhập mã đề.');
+  if (!tabName) return toast('Vui lòng nhập mã đề (VD: De1).');
   location.hash = `#exam-${level}_${tabName}`;
 };
 
+// ==========================================
+// TẢI ĐỀ TỪ API VÀ CHUẨN BỊ THI
+// ==========================================
 async function renderExamHome(id) {
   let [targetLevel, tabName] = id.split('_');
-  if (!tabName) { targetLevel = 'HSK4'; tabName = id; }
+  if (!tabName) { targetLevel = 'HSK4'; tabName = id; } 
   
-  app.innerHTML = `<section class="page"><div class="section-title"><span class="cn">加载中</span><span class="vi">Đang nạp dữ liệu...</span></div><div class="card"><div class="notice">Đang lấy đề <b>${tabName}</b> từ máy chủ ${targetLevel}...</div></div></section>`;
+  app.innerHTML = `<section class="page"><div class="section-title"><span class="cn">加载中</span><span class="vi">Đang nạp dữ liệu...</span></div><div class="card"><div class="notice">Đang kết nối đến máy chủ <b>${targetLevel}</b> để lấy đề <b>${tabName}</b>...</div></div></section>`;
   
   try {
     const apiUrl = COBI_APIS[targetLevel];
-    if (!apiUrl) throw new Error("Chưa cấu hình link API cho " + targetLevel);
+    if (!apiUrl) throw new Error(`Bạn chưa cài đặt link Google Sheets cho ${targetLevel} trong code.`);
     
     const response = await fetch(`${apiUrl}?action=getExam&id=${tabName}`);
     const data = await response.json();
@@ -74,10 +91,10 @@ async function renderExamHome(id) {
       ['书写', data.writing?.length || 0]
     ].filter(x => x[1] > 0);
     
-    app.innerHTML = `<section class="page"><div class="section-title"><span class="cn">${esc(meta.level)} 模拟考试</span><span class="vi">${esc(meta.title)}</span></div><div class="notice">${counts.map(x => `<strong>${x[0]}:</strong> ${x[1]}题`).join(' · ')}</div><div class="card-grid">${counts.map(x => `<div class="card"><h3>${x[0]}</h3><p>${x[1]} 题</p></div>`).join('')}</div><div class="card start-card"><label><strong>姓名 · Họ tên học viên</strong></label><input id="student-name" placeholder="Nhập họ tên"><button class="btn red" id="start-exam">开始考试 · Bắt đầu</button></div><div class="back-row"><a class="btn secondary" href="#${targetLevel.toLowerCase()}">← Quay lại</a></div></section>`;
+    app.innerHTML = `<section class="page"><div class="section-title"><span class="cn">${esc(meta.level)} 模拟考试</span><span class="vi">${esc(meta.title)}</span></div><div class="notice">${counts.map(x => `<strong>${x[0]}:</strong> ${x[1]}题`).join(' · ')}</div><div class="card-grid">${counts.map(x => `<div class="card"><h3>${x[0]}</h3><p>${x[1]} 题</p></div>`).join('')}</div><div class="card start-card"><label><strong>姓名 · Họ tên học viên</strong></label><input id="student-name" placeholder="Nhập họ tên của bạn"><button class="btn red" id="start-exam">开始考试 · Bắt đầu thi</button></div><div class="back-row"><a class="btn secondary" href="#${targetLevel.toLowerCase()}">← Chọn đề khác</a></div></section>`;
     document.getElementById('start-exam').onclick = () => startExam();
   } catch (e) {
-    app.innerHTML = `<section class="page"><div class="section-title"><span class="cn">错误</span><span class="vi">Lỗi nạp đề</span></div><div class="card"><div class="notice" style="border-color:red; color:red;">${e.message}</div></div><div class="back-row"><a class="btn secondary" href="#${targetLevel.toLowerCase()}">← Quay lại</a></div></section>`;
+    app.innerHTML = `<section class="page"><div class="section-title"><span class="cn">错误</span><span class="vi">Lỗi tải đề</span></div><div class="card"><div class="notice" style="border-left-color:var(--red); color:var(--red);">${e.message}</div></div><div class="back-row"><a class="btn secondary" href="#${targetLevel.toLowerCase()}">← Quay lại</a></div></section>`;
   }
 }
 
@@ -105,6 +122,9 @@ function shell(title, qs) {
   renderPalette(); updateProgress();
 }
 
+// ==========================================
+// VẼ GIAO DIỆN BÀI THI & CÂU HỎI
+// ==========================================
 function renderSection(sectionName, reviewMode = false) {
   clearTimers(); goTop(); EXAM.section = sectionName; EXAM.reviewMode = reviewMode;
   const qs = sectionQuestions(sectionName);
@@ -117,9 +137,10 @@ function renderSection(sectionName, reviewMode = false) {
     const audio = document.createElement('audio'); audio.src = EXAM.data.meta.listeningAudio; audio.style.display = 'none';
     audio.addEventListener('loadedmetadata', () => { if (isFinite(audio.duration)) { setPhaseTimer(Math.ceil(audio.duration), nextSection); }});
     audio.addEventListener('timeupdate', () => { if (isFinite(audio.duration)) { EXAM.remaining = Math.max(0, Math.ceil(audio.duration - audio.currentTime)); paintTimer(); }});
-    main.appendChild(audio); EXAM.audio = audio; audio.play().catch(() => toast('Vui lòng cho phép tự động phát âm thanh.'));
+    audio.addEventListener('error', () => { toast('Chưa tìm thấy file Audio. Thời gian mặc định 30 phút.'); setPhaseTimer(30 * 60, nextSection); });
+    main.appendChild(audio); EXAM.audio = audio; audio.play().catch(() => toast('Trình duyệt chặn tự động phát. Vui lòng bấm F5 hoặc cấp quyền âm thanh.'));
   } else if (!reviewMode) {
-    setPhaseTimer(40 * 60, nextSection); // Mặc định 40p cho phần Đọc/Viết, có thể chỉnh sau
+    setPhaseTimer(40 * 60, nextSection); // Mặc định 40p cho Đọc/Viết, bạn có thể chỉnh lại sau.
   }
   
   qs.forEach(q => main.appendChild(questionElement(q)));
@@ -141,7 +162,7 @@ window.nextSection = function() {
 window.renderReview = function() {
   clearTimers(); goTop(); EXAM.section = 'review'; EXAM.reviewMode = false;
   let qs = allQuestions(), un = qs.filter(q => !isDone(q));
-  app.innerHTML = `<section class="page"><div class="review-top"><div class="section-title"><span class="cn">检查答案</span><span class="vi">Rà soát · còn ${un.length} câu chưa làm</span></div></div><div class="card"><p><b class="green-text">Xanh</b> = đã làm · <b class="red-text">Đỏ</b> = chưa làm. Bấm số câu để sửa đáp án.</p><div class="palette review-palette">${qs.map(q => `<button class="${isDone(q) ? 'done' : ''}" onclick="jumpToQuestion(${q.id}, '${q.section}')">${q.id}</button>`).join('')}</div></div><div class="card"><button class="btn red" onclick="submitExam()">提交答案 · Nộp bài</button></div></section>`;
+  app.innerHTML = `<section class="page"><div class="review-top"><div class="section-title"><span class="cn">检查答案</span><span class="vi">Rà soát · còn ${un.length} câu chưa làm</span></div></div><div class="card"><p><b class="green-text">Xanh</b> = đã làm · <b class="red-text">Đỏ</b> = chưa làm. Bấm số câu để xem và sửa đáp án.</p><div class="palette review-palette">${qs.map(q => `<button class="${isDone(q) ? 'done' : ''}" onclick="jumpToQuestion(${q.id}, '${q.section}')">${q.id}</button>`).join('')}</div></div><div class="card"><button class="btn red" onclick="submitExam()">提交答案 · Nộp bài</button></div></section>`;
 };
 
 window.jumpToQuestion = function(id, sec) {
@@ -153,10 +174,11 @@ window.jumpToQuestion = function(id, sec) {
 function questionElement(q) {
   const c = document.createElement('article'); c.className = 'question-card'; c.id = 'q-' + q.id;
   let body = '';
+  // Tự động quét và hiển thị đáp án từ A đến F nhờ vào q.options
   if (q.type === 'tf' || q.type === 'mcq' || q.type === 'cloze' || q.type === 'reading') {
     body = `<div class="question-text">${esc(q.question)}</div><div class="options">${Object.entries(q.options).map(([k, v]) => `<label class="option"><input type="radio" name="q-${q.id}" value="${k}" ${EXAM.answers[q.id] === k ? 'checked' : ''}><span><b>${k}.</b> ${esc(v)}</span></label>`).join('')}</div>`;
-  } else if (q.type === 'writing_text' || q.type === 'picture' || q.type === 'essay') {
-    body = `<div class="question-text">${esc(q.question)}</div><input class="answer-input" data-answer="${q.id}" value="${esc(EXAM.answers[q.id] || '')}" placeholder="Nhập câu trả lời...">`;
+  } else {
+    body = `<div class="question-text">${esc(q.question)}</div><input class="answer-input" data-answer="${q.id}" value="${esc(EXAM.answers[q.id] || '')}" placeholder="Nhập câu trả lời của bạn...">`;
   }
   c.innerHTML = `<div class="q-head"><span class="q-number">第 ${q.id} 题</span></div>${body}`;
   c.querySelectorAll('input[type=radio]').forEach(r => r.onchange = () => setAnswer(q.id, r.value));
@@ -168,6 +190,9 @@ function setAnswer(id, v) { EXAM.answers[id] = v; renderPalette(); updateProgres
 function renderPalette() { let e = document.getElementById('palette'); if (!e) return; e.innerHTML = sectionQuestions(EXAM.section).map(q => `<button class="${isDone(q) ? 'done' : ''}" onclick="document.getElementById('q-${q.id}')?.scrollIntoView({behavior:'smooth'})">${q.id}</button>`).join(''); }
 function updateProgress() { let e = document.getElementById('progress-fill'); if (!e) return; let qs = sectionQuestions(EXAM.section); e.style.width = qs.length ? `${qs.filter(isDone).length / qs.length * 100}%` : '0%'; }
 
+// ==========================================
+// CHẤM ĐIỂM & TRẢ KẾT QUẢ VỀ GOOGLE SHEETS
+// ==========================================
 window.submitExam = function() {
   if (EXAM.submitted) return; EXAM.submitted = true;
   let qs = allQuestions();
@@ -175,7 +200,8 @@ window.submitExam = function() {
   let wrong = [];
   
   qs.forEach(q => {
-    if (q.type !== 'picture' && q.type !== 'essay' && q.answer) {
+    // Chỉ chấm tự động các câu có khai báo đáp án đúng (cột ANSWER)
+    if (q.answer && q.type !== 'picture' && q.type !== 'essay') {
       let isCorrect = norm(EXAM.answers[q.id]) === norm(q.answer);
       if (isCorrect) correctCount++;
       else wrong.push({ id: q.id, student: EXAM.answers[q.id] || '', correct: q.answer });
@@ -196,15 +222,15 @@ window.submitExam = function() {
 };
 
 function renderResult(r) {
-  app.innerHTML = `<section class="page"><div class="result-box"><div class="section-title"><span class="cn">考试结果</span><span class="vi">Kết quả</span></div><div class="score-big">${r.autoScore} <span style="font-size:20px; color:var(--muted)">câu đúng tự động</span></div><p class="result-note">Học viên: <b>${esc(r.studentName)}</b></p><h3>Chi tiết câu sai (Phần tự động chấm)</h3><div class="wrong-list">${r.wrong.length ? r.wrong.map(w => `<div class="wrong-item"><b>Câu ${w.id}</b> · Bạn: <code>${esc(w.student || 'Chưa làm')}</code> · Đáp án: <code>${esc(w.correct)}</code></div>`).join('') : 'Không sai câu nào!'}</div><div class="back-row"><a class="btn secondary" href="#${String(r.level).toLowerCase()}">← Về trang chủ</a></div></div></section>`;
+  app.innerHTML = `<section class="page"><div class="result-box"><div class="section-title"><span class="cn">考试结果</span><span class="vi">Kết quả làm bài</span></div><div class="score-big">${r.autoScore} <span style="font-size:20px; color:var(--muted)">câu đúng tự động</span></div><p class="result-note">Học viên: <b>${esc(r.studentName)}</b></p><h3>Chi tiết câu sai (Phần trắc nghiệm)</h3><div class="wrong-list">${r.wrong.length ? r.wrong.map(w => `<div class="wrong-item"><b>Câu ${w.id}</b> · Bạn: <code>${esc(w.student || 'Chưa làm')}</code> · Đáp án: <code>${esc(w.correct)}</code></div>`).join('') : 'Hoàn hảo! Không sai câu nào.'}</div><div class="back-row"><a class="btn secondary" href="#${String(r.level).toLowerCase()}">← Về trang danh sách</a></div></div></section>`;
 }
 
 function sendToSheet(r) {
   const apiUrl = COBI_APIS[r.level];
   if (!apiUrl) return;
   fetch(apiUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...r, wrong: JSON.stringify(r.wrong) }) })
-    .then(() => toast('Đã gửi kết quả lên hệ thống.'))
-    .catch(() => toast('Không kết nối được hệ thống.'));
+    .then(() => toast(`Đã gửi kết quả lên hệ thống ${r.level}.`))
+    .catch(() => toast('Không kết nối được với hệ thống lưu trữ.'));
 }
 
 window.addEventListener('hashchange', route); route();
