@@ -1,7 +1,7 @@
 // ==========================================
 // TỪ ĐIỂN API - ĐIỀN LINK GOOGLE SHEETS VÀO ĐÂY
 // ==========================================
-const COBI_APIS = {
+const COBI_APIS = {https://script.google.com/macros/s/AKfycbzwC5JyYCwTxDXIP7l-0vNU2S0S_5ofj1rkbg5ff3jzfwSNH4K5oY9HZcnGJMb0ABcy/exec
   'HSK1': '',
   'HSK2': '', 
   'HSK3': '',
