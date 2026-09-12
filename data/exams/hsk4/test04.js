@@ -1,10 +1,10 @@
 const HSK4_DATA_2 = {
     meta: {
-        id: 'hsk4_test05',
+        id: 'hsk4_test04',
         level: 'HSK4',
-        title: 'HSK4 · 模拟考试 · 第05套 (H41006)',
-        listeningAudio: 'audio/hsk4/test05.mp3',
-        writingPicture: 'img/hsk4/test05-writing.jpg',
+        title: 'HSK4 · 模拟考试 · 第04套 (H41006)',
+        listeningAudio: 'audio/hsk4/test04.mp3',
+        writingPicture: 'img/hsk4/test04-writing.jpg',
         listeningPoint: 2.22,
         readingPoint: 2.5,
         writingOrderPoint: 6,
