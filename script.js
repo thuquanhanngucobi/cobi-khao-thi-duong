@@ -1,13 +1,23 @@
 // ==========================================
-// TỪ ĐIỂN API - ĐIỀN LINK GOOGLE SHEETS VÀO ĐÂY
+// TỪ ĐIỂN API VÀ CẤU HÌNH THỜI GIAN
 // ==========================================
 const COBI_APIS = {
   'HSK1': '',
-  'HSK2': 'https://script.google.com/macros/s/AKfycbzwC5JyYCwTxDXIP7l-0vNU2S0S_5ofj1rkbg5ff3jzfwSNH4K5oY9HZcnGJMb0ABcy/exec',
+  'HSK2': 'https://script.google.com/macros/s/AKfycbzwC5JyYCwTxDXIP7l-0vNU2S0S_5ofj1rkbg5ff3jzfwSNH4K5oY9HZcnGJMb0ABcy/exec', 
   'HSK3': '',
   'HSK4': '', 
   'HSK5': '',
   'HSK6': ''
+};
+
+// Cấu hình thời gian thi (Đơn vị: Phút). Phần Listening chạy theo độ dài Audio.
+const TIMING_CONFIG = {
+  'HSK1': { reading: 17, writing: 0, review: 5 },
+  'HSK2': { reading: 25, writing: 0, review: 5 },
+  'HSK3': { reading: 30, writing: 15, review: 5 },
+  'HSK4': { reading: 40, writing: 25, review: 5 },
+  'HSK5': { reading: 45, writing: 40, review: 5 },
+  'HSK6': { reading: 50, writing: 45, review: 5 }
 };
 
 const app = document.getElementById('app'), toastEl = document.getElementById('toast');
@@ -29,19 +39,13 @@ function route() {
   document.querySelectorAll('.main-nav a').forEach(a => a.classList.toggle('active', a.dataset.route === h));
 }
 
-// ==========================================
-// HÀM NHẬN DIỆN PINYIN VÀ ĐÁP ÁN BẰNG HÌNH ẢNH (TÍNH NĂNG MỚI)
-// ==========================================
+// Xử lý Pinyin xuống dòng và Ảnh
 function renderContent(str) {
   if (!str) return '';
   let s = String(str).trim();
-  
-  // Nếu dữ liệu là link ảnh (đuôi jpg, png...) -> Chuyển thành thẻ ảnh
   if (/^[^<]*\.(jpeg|jpg|gif|png|webp)$/i.test(s)) {
       return `<img src="${s}" style="display:block; max-height:150px; max-width:100%; border-radius:5px; margin-top:8px; border: 1px solid #ddd;">`;
   }
-  
-  // Nếu là chữ: Đổi dấu \n (Alt+Enter) thành <br> để xếp Pinyin lên trên chữ Hán
   return s.replace(/\n/g, '<br>');
 }
 
@@ -128,7 +132,7 @@ function shell(title, qs) {
 }
 
 // ==========================================
-// VẼ GIAO DIỆN BÀI THI & CÂU HỎI
+// VẼ GIAO DIỆN BÀI THI & XỬ LÝ AUDIO CHỐNG GIAN LẬN
 // ==========================================
 function renderSection(sectionName, reviewMode = false) {
   clearTimers(); goTop(); EXAM.section = sectionName; EXAM.reviewMode = reviewMode;
@@ -137,22 +141,88 @@ function renderSection(sectionName, reviewMode = false) {
   
   shell(reviewMode ? `Rà soát: ${titleMap[sectionName]}` : titleMap[sectionName], qs);
   const main = document.getElementById('exam-main');
+  const currentLevel = String(EXAM.data.meta?.level || 'HSK2').toUpperCase();
   
-  if (sectionName === 'listening' && !reviewMode && EXAM.data.meta?.listeningAudio) {
-    const audio = document.createElement('audio'); audio.src = EXAM.data.meta.listeningAudio; audio.style.display = 'none';
-    audio.addEventListener('loadedmetadata', () => { if (isFinite(audio.duration)) { setPhaseTimer(Math.ceil(audio.duration), nextSection); }});
-    audio.addEventListener('timeupdate', () => { if (isFinite(audio.duration)) { EXAM.remaining = Math.max(0, Math.ceil(audio.duration - audio.currentTime)); paintTimer(); }});
-    audio.addEventListener('error', () => { toast('Chưa tìm thấy file Audio. Thời gian mặc định 30 phút.'); setPhaseTimer(30 * 60, nextSection); });
-    main.appendChild(audio); EXAM.audio = audio; audio.play().catch(() => toast('Trình duyệt chặn tự động phát. Vui lòng bấm Play trên máy.'));
-  } else if (!reviewMode) {
-    setPhaseTimer(40 * 60, nextSection); 
+  if (sectionName === 'listening' && !reviewMode) {
+    let levelStr = currentLevel.toLowerCase();
+    let titleStr = String(EXAM.data.meta?.title || 'de1').toLowerCase();
+    
+    const audio = document.createElement('audio'); 
+    audio.style.display = 'none'; // Ẩn hoàn toàn thẻ audio để không cho tua
+    
+    // Tạo cổng chờ (Gate)
+    const gate = document.createElement('div');
+    gate.className = 'card';
+    gate.style.textAlign = 'center';
+    gate.style.padding = '40px 20px';
+    gate.innerHTML = `
+      <h3 style="color:var(--red); font-size:24px;">Phần thi Nghe (听力)</h3>
+      <p id="audio-status" style="color:var(--muted); margin: 15px 0 25px;">Đang tải dữ liệu âm thanh...</p>
+      <button class="btn red" id="btn-start-audio" disabled style="font-size:18px; padding:12px 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">▶ Bắt đầu Nghe & Tính giờ</button>
+    `;
+    
+    // Tạo container chứa câu hỏi (bị ẩn lúc đầu)
+    const qContainer = document.createElement('div');
+    qContainer.style.display = 'none'; 
+    
+    main.appendChild(gate);
+    main.appendChild(qContainer);
+    main.appendChild(audio);
+    
+    // Khi audio tải xong, mở khóa nút Bắt đầu
+    audio.addEventListener('loadedmetadata', () => { 
+        document.getElementById('audio-status').innerHTML = `Thời lượng Audio: <b>${Math.ceil(audio.duration/60)} phút</b>.<br><i>Toàn bộ câu hỏi đã bị ẩn. Bấm nút dưới đây để phát Audio, xem câu hỏi và bắt đầu tính giờ.</i>`;
+        const btn = document.getElementById('btn-start-audio');
+        btn.disabled = false;
+        btn.onclick = () => {
+           gate.style.display = 'none'; // Ẩn cổng chờ
+           qContainer.style.display = 'block'; // Hiện câu hỏi
+           audio.play().catch(() => toast('Trình duyệt có thể chặn âm thanh, vui lòng tải lại trang và thử lại.'));
+           setPhaseTimer(Math.ceil(audio.duration), nextSection);
+        };
+    });
+    
+    // Cập nhật đồng hồ theo audio
+    audio.addEventListener('timeupdate', () => { 
+        if (isFinite(audio.duration)) { 
+            EXAM.remaining = Math.max(0, Math.ceil(audio.duration - audio.currentTime)); 
+            paintTimer(); 
+        }
+    });
+    
+    // Xử lý lỗi nếu sai tên file audio
+    audio.addEventListener('error', () => { 
+        document.getElementById('audio-status').innerHTML = '<span style="color:red">Lỗi: Không tìm thấy file Audio. Bạn có thể làm chay trong 30 phút.</span>'; 
+        const btn = document.getElementById('btn-start-audio');
+        btn.disabled = false;
+        btn.onclick = () => {
+           gate.style.display = 'none';
+           qContainer.style.display = 'block';
+           setPhaseTimer(30 * 60, nextSection);
+        };
+    });
+    
+    audio.src = `audio/${levelStr}/${titleStr}.mp3`; 
+    EXAM.audio = audio; 
+    
+    // Đổ câu hỏi vào qContainer thay vì main
+    qs.forEach(q => qContainer.appendChild(questionElement(q)));
+    const btnRow = document.createElement('div'); btnRow.className = 'action-row';
+    btnRow.innerHTML = `<span></span><button class="btn red" onclick="nextSection()">Xong phần Nghe →</button>`;
+    qContainer.appendChild(btnRow);
+
+  } else {
+    // Logic Đọc, Viết và Review mode
+    if (!reviewMode) {
+      let configTime = TIMING_CONFIG[currentLevel] ? TIMING_CONFIG[currentLevel][sectionName] : 40;
+      setPhaseTimer(configTime * 60, nextSection); 
+    }
+    qs.forEach(q => main.appendChild(questionElement(q)));
+    
+    const btnRow = document.createElement('div'); btnRow.className = 'action-row';
+    btnRow.innerHTML = reviewMode ? `<span></span><button class="btn secondary" onclick="startReview()">← Quay lại rà soát</button>` : `<span></span><button class="btn red" onclick="nextSection()">Xong phần này →</button>`;
+    main.appendChild(btnRow);
   }
-  
-  qs.forEach(q => main.appendChild(questionElement(q)));
-  
-  const btnRow = document.createElement('div'); btnRow.className = 'action-row';
-  btnRow.innerHTML = reviewMode ? `<span></span><button class="btn secondary" onclick="renderReview()">← Quay lại rà soát</button>` : `<span></span><button class="btn red" onclick="nextSection()">Xong phần này →</button>`;
-  main.appendChild(btnRow);
   
   renderPalette(); updateProgress();
 }
@@ -164,11 +234,40 @@ window.nextSection = function() {
   else startReview();
 };
 
-window.renderReview = function() {
+// ==========================================
+// THỜI GIAN 5 PHÚT RÀ SOÁT VÀ NỘP BÀI
+// ==========================================
+window.startReview = function() {
+  if(EXAM.section === 'review') return;
   clearTimers(); goTop(); EXAM.section = 'review'; EXAM.reviewMode = false;
+  
+  let currentLevel = String(EXAM.data.meta?.level || 'HSK2').toUpperCase();
+  let rTime = TIMING_CONFIG[currentLevel]?.review || 5;
+  EXAM.reviewDeadline = Date.now() + rTime * 60 * 1000;
+  
+  renderReviewUI();
+  
+  EXAM.remaining = rTime * 60;
+  paintReviewTimer();
+  EXAM.timer = setInterval(() => {
+     EXAM.remaining = Math.max(0, Math.ceil((EXAM.reviewDeadline - Date.now())/1000));
+     paintReviewTimer();
+     if(EXAM.remaining <= 0) { clearTimers(); submitExam(); }
+  }, 200);
+}
+
+function renderReviewUI() {
   let qs = allQuestions(), un = qs.filter(q => !isDone(q));
-  app.innerHTML = `<section class="page"><div class="review-top"><div class="section-title"><span class="cn">检查答案</span><span class="vi">Rà soát · còn ${un.length} câu chưa làm</span></div></div><div class="card"><p><b class="green-text">Xanh</b> = đã làm · <b class="red-text">Đỏ</b> = chưa làm. Bấm số câu để sửa đáp án.</p><div class="palette review-palette">${qs.map(q => `<button class="${isDone(q) ? 'done' : ''}" onclick="jumpToQuestion(${q.id}, '${q.section}')">${q.id}</button>`).join('')}</div></div><div class="card"><button class="btn red" onclick="submitExam()">提交答案 · Nộp bài</button></div></section>`;
-};
+  app.innerHTML = `<section class="page"><div class="review-top" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;"><div class="section-title" style="margin-bottom:0;"><span class="cn">检查答案</span><span class="vi">Rà soát · còn ${un.length} câu chưa làm</span></div><div class="review-timer" id="review-timer" style="font-size:24px; color:var(--red); font-weight:bold; border: 1px solid var(--red); padding: 5px 15px; border-radius: 5px; background: #fff8ef;">05:00</div></div><div class="card"><p><b class="green-text">Xanh</b> = đã làm · <b class="red-text">Đỏ</b> = chưa làm. Bấm số câu để sửa đáp án.</p><div class="palette review-palette">${qs.map(q => `<button class="${isDone(q) ? 'done' : ''}" onclick="jumpToQuestion(${q.id}, '${q.section}')">${q.id}</button>`).join('')}</div></div><div class="card"><button class="btn red" onclick="submitExam()">提交答案 · Nộp bài ngay</button></div></section>`;
+}
+
+function paintReviewTimer() {
+   let el = document.getElementById('review-timer');
+   if(el){
+       let s = Math.max(0, EXAM.remaining), m = Math.floor(s/60), r = s%60;
+       el.textContent = `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
+   }
+}
 
 window.jumpToQuestion = function(id, sec) {
   if (EXAM.section !== 'review') return;
@@ -176,12 +275,14 @@ window.jumpToQuestion = function(id, sec) {
   setTimeout(() => document.getElementById('q-' + id)?.scrollIntoView({ behavior: 'auto', block: 'start' }), 80);
 };
 
+// ==========================================
+// RENDER CÂU HỎI & LỰA CHỌN
+// ==========================================
 function questionElement(q) {
   const c = document.createElement('article'); c.className = 'question-card'; c.id = 'q-' + q.id;
   let body = '';
   
-  // Tích hợp renderContent() để tự động hiển thị Pinyin và Ảnh đáp án
-  if (q.type === 'tf' || q.type === 'mcq' || q.type === 'cloze' || q.type === 'reading') {
+  if (q.type === 'tf' || q.type === 'mcq' || q.type === 'cloze' || q.type === 'reading' || q.type === 'order') {
     body = `<div class="question-text" style="line-height:1.8;">${renderContent(q.question)}</div>
             <div class="options" style="align-items: center;">
                ${Object.entries(q.options).map(([k, v]) => `
@@ -210,6 +311,8 @@ function updateProgress() { let e = document.getElementById('progress-fill'); if
 // ==========================================
 window.submitExam = function() {
   if (EXAM.submitted) return; EXAM.submitted = true;
+  clearTimers(); if(EXAM.audio) EXAM.audio.pause();
+  
   let qs = allQuestions();
   let correctCount = 0;
   let wrong = [];
