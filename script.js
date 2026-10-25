@@ -2,7 +2,7 @@
 // TỪ ĐIỂN API VÀ CẤU HÌNH THỜI GIAN
 // ==========================================
 const COBI_APIS = {
-  'HSK1': '',
+  'HSK1': 'https://script.google.com/macros/s/AKfycbyyMWttUjN8CbvzPjYLJrQNWHbuMMVkaAIkRNZ_dGiJ177sG88A5Ug29mhLwb9S2dC0/exec',
   'HSK2': 'https://script.google.com/macros/s/AKfycbzwC5JyYCwTxDXIP7l-0vNU2S0S_5ofj1rkbg5ff3jzfwSNH4K5oY9HZcnGJMb0ABcy/exec', 
   'HSK3': '',
   'HSK4': '', 
